@@ -13,6 +13,8 @@ export type StarboardNotebookIFrameOptions<ReceivedMessageType = OutboundNoteboo
     autoResize: boolean;
     inPageLinks: boolean;
 
+    baseUrl?: string;
+
     notebookContent?: Promise<string> | string;
 
     onNotebookReadySignalMessage(payload: ReadySignalMessage['payload']): void;
@@ -32,6 +34,7 @@ function loadDefaultSettings(opts: Partial<StarboardNotebookIFrameOptions>, el: 
     return {
         // We fall back to a specific starboard package version on jsdelivr, but ideally one would always specify their own URL that is locked to a specific version.
         src: opts.src ?? el.getAttribute("src") ?? "starboard-notebook-iframe-src-not-set",
+        baseUrl: opts.baseUrl || el.dataset["baseUrl"] || undefined,
         autoResize: opts.autoResize ?? true,
         inPageLinks: opts.inPageLinks ?? true,
         sandbox: opts.sandbox ?? el.getAttribute("sandbox") ?? "allow-scripts allow-modals allow-same-origin allow-pointer-lock allow-top-navigation-by-user-activation allow-forms allow-downloads",
@@ -81,7 +84,7 @@ export class StarboardNotebookIFrame extends HTMLIFrameElement {
                     if (this.options!.notebookContent) {
                         const content = await this.options!.notebookContent;
                         this.sendMessage({
-                            type: "NOTEBOOK_SET_INIT_DATA", payload: {content}
+                            type: "NOTEBOOK_SET_INIT_DATA", payload: {content, baseUrl: this.options!.baseUrl}
                         });
                     } else {
                         this.notebookContent = msg.payload.content;

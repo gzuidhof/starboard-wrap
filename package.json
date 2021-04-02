@@ -1,6 +1,6 @@
 {
   "name": "starboard-wrap",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "Wrapper element and helpers for Starboard Notebook",
   "main": "dist/index.js",
   "scripts": {
