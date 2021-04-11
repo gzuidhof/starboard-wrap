@@ -1,6 +1,6 @@
 {
   "name": "starboard-wrap",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "description": "Wrapper element and helpers for Starboard Notebook",
   "main": "dist/index.js",
   "scripts": {
@@ -36,6 +36,7 @@
     "typescript": "^4.2.3"
   },
   "dependencies": {
+    "@ungap/custom-elements": "^0.1.15",
     "iframe-resizer": "^4.3.1"
   }
 }
