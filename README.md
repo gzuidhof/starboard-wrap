@@ -42,6 +42,8 @@ Or
 </starboard-embed>
 ```
 
+> ⚠️ Never use the second approach (the one with the `<script>` tag) for notebooks you did not author yourself! It makes cross site scripting (XSS) trivial. Its intended use is for embedding small notebooks in a blogpost, not for use in applications with user-generated content.
+
 ## Changelog
 
 ### 0.3.0
