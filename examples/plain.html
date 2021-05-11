@@ -1,19 +1,20 @@
-<!--Not a very useful example.. but this is one way -->
+<script src="/dist/index.iife.js" defer></script>
 
-<script src="/dist/index.iife.js"></script>
-
-<iframe
-    is="starboard-notebook-iframe"
-    src="https://unpkg.com/starboard-notebook@0.7.12/dist/index.html"
-    style="width: 100%">
-></iframe>
+<starboard-embed>
+    <iframe
+        src="https://unpkg.com/starboard-notebook@0.9.1/dist/index.html"
+        style="width: 100%">
+    ></iframe>
+</starboard-embed>
 
 <script>
-    const el = document.querySelector("iframe");
-    el.sendMessage({
-        type: "NOTEBOOK_SET_INIT_DATA",
-        payload: {
-            content: "# %% [javascript]\nconsole.log('Hello world!')"
-        }
+    window.addEventListener('DOMContentLoaded', function() {
+        const el = document.querySelector("starboard-embed");
+        el.sendMessage({
+            type: "NOTEBOOK_SET_INIT_DATA",
+            payload: {
+                content: "# %% [javascript]\nconsole.log('Hello world!')"
+            }
+        })
     })
 </script>

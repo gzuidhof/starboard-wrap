@@ -1,0 +1,29 @@
+<script src="/dist/index.iife.js" defer></script>
+
+<starboard-embed>
+
+    <script type="starboard">
+# %% [markdown]
+# Introducing Starboard Notebook
+Starboard brings cell-by-cell notebooks to the browser, no code is running on the backend here!
+It's probably the quickest way to visualize some data with interactivity, do some prototyping, or build a rudimentary dashboard.
+
+#### Some features 
+* Mix Markdown, $\LaTeX$, HTML, CSS, Javascript, and Python.
+* The file format is a plaintext file, which plays nice with version control systems like git.
+* Runs entirely in your browser, everything is static: no server, no setup and no build step.
+* You can embed a fully functional notebook on your website.
+
+Let's see it in action!
+
+> Tip: Press the ▶ Play button on the left to run a cell's code.
+
+# %% [javascript]
+// You write vanilla Javascript
+const greeting = "Hello world!";
+
+// The last statement in a cell will be displayed if it is not undefined.
+greeting</script>
+
+    <iframe src="https://unpkg.com/starboard-notebook@0.9.1/dist/index.html" style="width: 100%"></iframe>
+</starboard-embed>
