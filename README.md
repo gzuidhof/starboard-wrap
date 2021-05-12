@@ -46,6 +46,10 @@ Or
 
 ## Changelog
 
+### 0.3.1
+* The notebook iframe src is now hardcoded to a recent starboard-notebook version if not set explicitly on the iframe or passed into the constructor.
+* You can now specify your own iframe in the constructor options, this is only relevant for rather advanced use-cases in which a fast loading speed is especially critical.
+
 ### 0.3.0
 * Renamed the custom element to `StarboardEmbed` with HTML tag `starboard-embed`.
 * The custom element longer extends `IFrameHTMLElement`, instead it will look for an iframe child node or create one if it doesn't exist. This means that the Safari polyfill is no longer required, and pages containing a notebook in an iframe will load faster as the iframe can start loading before the main page's Javascript has been run.

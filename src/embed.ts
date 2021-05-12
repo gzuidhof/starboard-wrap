@@ -16,12 +16,18 @@ import {
 import { flatPromise } from "./flatPromise";
 
 export type StarboardNotebookIFrameOptions<ReceivedMessageType = OutboundNotebookMessage> = {
+  /**
+   * Optionally you can pass the iframe to attach to. If you don't pass one here
+   * an iframe will be created as a child unless the starboard-embed element already has an iframe as a child.
+   */
+  iFrame: HTMLIFrameElement | null;
   src: string;
 
   autoResize: boolean;
   inPageLinks: boolean;
 
   baseUrl?: string;
+
   notebookContent?: Promise<string> | string;
 
   onNotebookReadySignalMessage(payload: ReadySignalMessage["payload"]): void;
@@ -42,11 +48,12 @@ function loadDefaultSettings(
   el: HTMLIFrameElement
 ): StarboardNotebookIFrameOptions {
   return {
+    iFrame: opts.iFrame || null,
     src:
       opts.src ??
       el.getAttribute("src") ??
-      (window as any).starboardIFrameSrc ??
-      "starboard-notebook-iframe-src-not-set",
+      (window as any).starboardEmbedIFrameSrc ??
+      "https://unpkg.com/starboard-notebook@0.9.1/dist/index.html",
     baseUrl: opts.baseUrl || el.dataset["baseUrl"] || undefined,
     autoResize: opts.autoResize ?? true,
     inPageLinks: opts.inPageLinks ?? true,
@@ -87,17 +94,23 @@ export class StarboardEmbed extends HTMLElement {
     super();
     this.constructorOptions = opts;
 
-    this.iFrame = this.querySelector("iframe");
+    if (this.constructorOptions.iFrame) {
+      this.iFrame = this.constructorOptions.iFrame;
+    } else {
+      this.iFrame = this.querySelector("iframe");
+    }
   }
 
   connectedCallback() {
-    // Find iframe element child, and otherwise create one.
-    this.iFrame = this.querySelector("iframe");
     if (!this.iFrame) {
-      this.iFrame = document.createElement("iframe");
-      this.iFrame.style.width = "100%";
-      this.appendChild(this.iFrame);
+      // Find iframe element child, and otherwise create one.
+      this.iFrame = this.querySelector("iframe");
+      if (!this.iFrame) {
+        this.iFrame = document.createElement("iframe");
+        this.appendChild(this.iFrame);
+      }
     }
+    this.iFrame.style.width = "100%";
 
     this.options = loadDefaultSettings(this.constructorOptions, this.iFrame);
     if (!this.options.notebookContent) {
