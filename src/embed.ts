@@ -53,7 +53,7 @@ function loadDefaultSettings(
       opts.src ??
       el.getAttribute("src") ??
       (window as any).starboardEmbedIFrameSrc ??
-      "https://unpkg.com/starboard-notebook@0.9.1/dist/index.html",
+      "https://unpkg.com/starboard-notebook@0.9.4/dist/index.html",
     baseUrl: opts.baseUrl || el.dataset["baseUrl"] || undefined,
     autoResize: opts.autoResize ?? true,
     inPageLinks: opts.inPageLinks ?? true,
@@ -120,7 +120,7 @@ export class StarboardEmbed extends HTMLElement {
       }
     }
 
-    const checkOrigin = [new URL(this.options.src).origin];
+    const checkOrigin = [new URL(this.options.src, location.origin).origin];
 
     this.iFrame.sandbox.value = this.options.sandbox;
 

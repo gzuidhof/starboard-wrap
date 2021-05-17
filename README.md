@@ -37,7 +37,7 @@ Or
 # %% [javascript]
 3+5
 </script>
-<iframe src="https://unpkg.com/starboard-notebook@0.9.1/dist/index.html" style="width: 100%"></iframe>
+<iframe src="https://unpkg.com/starboard-notebook@0.9.4/dist/index.html" style="width: 100%"></iframe>
 
 </starboard-embed>
 ```
@@ -45,6 +45,10 @@ Or
 > ⚠️ Never use the second approach (the one with the `<script>` tag inside the `starboard-embed` element) for notebooks you did not author yourself! It makes cross site scripting (XSS) trivial. Its intended use is for embedding small notebooks in a blogpost, not for use in applications with user-generated content.
 
 ## Changelog
+
+### 0.3.2
+* Better support for relative URL in embed src.
+* Update default src to starboard-notebook version `0.9.4`.
 
 ### 0.3.1
 * The notebook iframe src is now hardcoded to a recent starboard-notebook version if not set explicitly on the iframe or passed into the constructor.
