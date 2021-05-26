@@ -1,6 +1,6 @@
 {
   "name": "starboard-wrap",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "Wrapper element and helpers for Starboard Notebook",
   "main": "dist/index.js",
   "scripts": {
@@ -33,7 +33,7 @@
     "rollup": "^2.40.0",
     "rollup-plugin-terser": "^7.0.2",
     "rollup-plugin-typescript2": "^0.30.0",
-    "starboard-notebook": "^0.7.13",
+    "starboard-notebook": "^0.10.1",
     "typescript": "^4.2.3"
   },
   "dependencies": {

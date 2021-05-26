@@ -12,7 +12,7 @@ import {
   OutboundNotebookMessage,
   ReadySignalMessage,
   SaveMessage,
-} from "starboard-notebook/dist/src/messages/types";
+} from "starboard-notebook/dist/src/types/messages";
 import { flatPromise } from "./flatPromise";
 
 export type StarboardNotebookIFrameOptions<ReceivedMessageType = OutboundNotebookMessage> = {
@@ -31,12 +31,18 @@ export type StarboardNotebookIFrameOptions<ReceivedMessageType = OutboundNoteboo
   notebookContent?: Promise<string> | string;
 
   onNotebookReadySignalMessage(payload: ReadySignalMessage["payload"]): void;
-  onSaveMessage(payload: SaveMessage["payload"]): void;
+
+  /**
+   * Should return whether the saving was succesful or not.
+   */
+  onSaveMessage(payload: SaveMessage["payload"]): void | boolean | Promise<boolean>;
   onContentUpdateMessage(payload: ContentUpdateMessage["payload"]): void;
   onMessage(message: ReceivedMessageType): void;
+  onUnsavedChangesStatusChange(hasUnsavedChanges: boolean): void;
 
   sandbox: string;
   debug: boolean;
+  preventNavigationWithUnsavedChanges: boolean;
 };
 
 export type StarboardNotebookMessage = {
@@ -53,7 +59,7 @@ function loadDefaultSettings(
       opts.src ??
       el.getAttribute("src") ??
       (window as any).starboardEmbedIFrameSrc ??
-      "https://unpkg.com/starboard-notebook@0.9.4/dist/index.html",
+      "https://unpkg.com/starboard-notebook@0.10.1/dist/index.html",
     baseUrl: opts.baseUrl || el.dataset["baseUrl"] || undefined,
     autoResize: opts.autoResize ?? true,
     inPageLinks: opts.inPageLinks ?? true,
@@ -66,14 +72,20 @@ function loadDefaultSettings(
     onContentUpdateMessage: opts.onContentUpdateMessage ?? function () {},
     onSaveMessage: opts.onSaveMessage ?? function () {},
     onMessage: opts.onMessage ?? function () {},
+    onUnsavedChangesStatusChange: opts.onUnsavedChangesStatusChange ?? function () {},
     notebookContent: opts.notebookContent,
+    preventNavigationWithUnsavedChanges: opts.preventNavigationWithUnsavedChanges ?? false,
   };
 }
 
 export class StarboardEmbed extends HTMLElement {
   private options?: StarboardNotebookIFrameOptions;
   private constructorOptions: Partial<StarboardNotebookIFrameOptions>;
+
   public notebookContent: string = "";
+  public lastSavedNotebookContent: string = "";
+  /** Has unsaved changes */
+  public dirty = false;
 
   // The version of starboard-wrap
   public version: string = "__STARBOARD_WRAP_VERSION__";
@@ -87,8 +99,9 @@ export class StarboardEmbed extends HTMLElement {
    * The wrapped iframe element.
    */
   private iFrame: HTMLIFrameElement | null;
-
   private hasReceivedReadyMessage = flatPromise();
+
+  private unsavedChangesWarningFunction?: (e: BeforeUnloadEvent) => any;
 
   constructor(opts: Partial<StarboardNotebookIFrameOptions> = {}) {
     super();
@@ -113,6 +126,16 @@ export class StarboardEmbed extends HTMLElement {
     this.iFrame.style.width = "100%";
 
     this.options = loadDefaultSettings(this.constructorOptions, this.iFrame);
+    if (this.options.preventNavigationWithUnsavedChanges) {
+      this.unsavedChangesWarningFunction = (e) => {
+        if (this.dirty) {
+          e.preventDefault();
+          e.returnValue = "";
+        }
+      };
+      window.addEventListener("beforeunload", this.unsavedChangesWarningFunction);
+    }
+
     if (!this.options.notebookContent) {
       const scriptEl = this.querySelector("script");
       if (scriptEl) {
@@ -141,21 +164,33 @@ export class StarboardEmbed extends HTMLElement {
           if (msg.type === "NOTEBOOK_READY_SIGNAL") {
             if (this.options!.notebookContent) {
               const content = await this.options!.notebookContent;
+              this.notebookContent = content;
+              this.lastSavedNotebookContent = this.notebookContent;
               this.sendMessage({
                 type: "NOTEBOOK_SET_INIT_DATA",
                 payload: { content, baseUrl: this.options!.baseUrl },
               });
             } else {
               this.notebookContent = msg.payload.content;
+              this.lastSavedNotebookContent = this.notebookContent;
             }
             this.hasReceivedReadyMessage.resolve(msg.payload);
             this.options!.onNotebookReadySignalMessage(msg.payload);
           } else if (msg.type === "NOTEBOOK_CONTENT_UPDATE") {
             this.notebookContent = msg.payload.content;
+            this.updateDirty();
             this.options!.onContentUpdateMessage(msg.payload);
           } else if (msg.type === "NOTEBOOK_SAVE_REQUEST") {
             this.notebookContent = msg.payload.content;
-            this.options!.onSaveMessage(msg.payload);
+            this.updateDirty();
+            // Make it a promise regardless of return value of the function.
+            const r = Promise.resolve(this.options!.onSaveMessage(msg.payload));
+            r.then((ret) => {
+              if (ret === true) {
+                this.lastSavedNotebookContent = msg.payload.content;
+                this.updateDirty();
+              }
+            });
           }
           this.options!.onMessage(msg);
         },
@@ -172,13 +207,37 @@ export class StarboardEmbed extends HTMLElement {
     this.hasReceivedReadyMessage.promise.then(() => this.iFrameResizer.sendMessage(message));
   }
 
+  /**
+   * Tell the embed a save has been made with the given content so it can update it's "dirty" status.
+   * If no content is supplied, the current content is assumed to be the just saved content.
+   */
+  public setSaved(content?: string) {
+    if (content === undefined) {
+      content = this.notebookContent;
+    }
+    this.lastSavedNotebookContent = content;
+    this.updateDirty();
+  }
+
+  private updateDirty() {
+    const priorDirtyState = this.dirty;
+    this.dirty = this.lastSavedNotebookContent !== this.notebookContent;
+
+    if (this.dirty !== priorDirtyState) {
+      this.options?.onUnsavedChangesStatusChange(this.dirty);
+    }
+  }
+
   public sendCustomMessage(message: NotebookMessage<string, any>) {
     this.sendMessage(message as any);
   }
 
   public dispose() {
     this.iFrameResizer.close();
+
+    if (this.unsavedChangesWarningFunction) {
+      window.removeEventListener("beforeunload", this.unsavedChangesWarningFunction);
+    }
   }
 }
-
 customElements.define("starboard-embed", StarboardEmbed);

@@ -18,10 +18,9 @@ The webpage talks to the notebook runtime in the iFrame using `postMessage`. Thi
 
     const el = new StarboardEmbed({
         notebookContent: "# %% [javascript]\n3+5\n",
-        src: "https://unpkg.com/starboard-notebook@0.9.1/dist/index.html"
+        src: "https://unpkg.com/starboard-notebook@0.10.1/dist/index.html"
     });
 
-    el.style.width = "100%";
     mount.appendChild(el);
 </script>
 ```
@@ -37,7 +36,7 @@ Or
 # %% [javascript]
 3+5
 </script>
-<iframe src="https://unpkg.com/starboard-notebook@0.9.4/dist/index.html" style="width: 100%"></iframe>
+<iframe src="https://unpkg.com/starboard-notebook@0.10.1/dist/index.html"></iframe>
 
 </starboard-embed>
 ```
@@ -45,6 +44,15 @@ Or
 > ⚠️ Never use the second approach (the one with the `<script>` tag inside the `starboard-embed` element) for notebooks you did not author yourself! It makes cross site scripting (XSS) trivial. Its intended use is for embedding small notebooks in a blogpost, not for use in applications with user-generated content.
 
 ## Changelog
+
+### 0.3.3
+* The embed element now tracks unsaved and saved changes.
+* Changes to options:
+  * Added `preventNavigationWithUnsavedChanges` (boolean) option to prevent accidental leaving the page with unsaved changes.
+   * Added `onUnsavedChangesStatusChange` (boolean => void) callback option so you can update your UI accordingly.
+   * The `onSaveMessage` callback function can now return a (promise of a) boolean, in case it resolves to `true` the last saved content is updated.
+* Added `setSaved(content?: string)` method to allow for manually setting the last saved content.
+* Update default src to starboard-notebook version `0.10.1`.
 
 ### 0.3.2
 * Better support for relative URL in embed src.
