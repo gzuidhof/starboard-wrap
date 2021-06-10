@@ -3,8 +3,6 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 // @ts-ignore - no types available for iframe-resizer
-import { default as iFrameResizer } from "iframe-resizer/js/iframeResizer";
-
 import {
   ContentUpdateMessage,
   InboundNotebookMessage,
@@ -24,10 +22,12 @@ export type StarboardNotebookIFrameOptions<ReceivedMessageType = OutboundNoteboo
   src: string;
 
   autoResize: boolean;
-  inPageLinks: boolean;
 
   baseUrl?: string;
 
+  /**
+   * Notebook content to initialize the iframe with
+   */
   notebookContent?: Promise<string> | string;
 
   onNotebookReadySignalMessage(payload: ReadySignalMessage["payload"]): void;
@@ -40,8 +40,10 @@ export type StarboardNotebookIFrameOptions<ReceivedMessageType = OutboundNoteboo
   onMessage(message: ReceivedMessageType): void;
   onUnsavedChangesStatusChange(hasUnsavedChanges: boolean): void;
 
+  /**
+   * Custom iframe sandboxing attributes
+   */
   sandbox: string;
-  debug: boolean;
   preventNavigationWithUnsavedChanges: boolean;
 };
 
@@ -59,15 +61,13 @@ function loadDefaultSettings(
       opts.src ??
       el.getAttribute("src") ??
       (window as any).starboardEmbedIFrameSrc ??
-      "https://unpkg.com/starboard-notebook@0.10.1/dist/index.html",
+      "https://unpkg.com/starboard-notebook@0.11.1/dist/index.html",
     baseUrl: opts.baseUrl || el.dataset["baseUrl"] || undefined,
     autoResize: opts.autoResize ?? true,
-    inPageLinks: opts.inPageLinks ?? true,
     sandbox:
       opts.sandbox ??
       el.getAttribute("sandbox") ??
       "allow-scripts allow-modals allow-same-origin allow-pointer-lock allow-top-navigation-by-user-activation allow-forms allow-downloads",
-    debug: opts.debug ?? false,
     onNotebookReadySignalMessage: opts.onNotebookReadySignalMessage ?? function () {},
     onContentUpdateMessage: opts.onContentUpdateMessage ?? function () {},
     onSaveMessage: opts.onSaveMessage ?? function () {},
@@ -91,21 +91,18 @@ export class StarboardEmbed extends HTMLElement {
   public version: string = "__STARBOARD_WRAP_VERSION__";
 
   /**
-   * This is set automatically by iframeResizer.
-   */
-  private iFrameResizer!: any; // TODO check if this is always a list,
-
-  /**
    * The wrapped iframe element.
    */
   private iFrame: HTMLIFrameElement | null;
   private hasReceivedReadyMessage = flatPromise();
+  private iFrameMessageHandler?: (ev: MessageEvent<any>) => void;
 
   private unsavedChangesWarningFunction?: (e: BeforeUnloadEvent) => any;
 
   constructor(opts: Partial<StarboardNotebookIFrameOptions> = {}) {
     super();
     this.constructorOptions = opts;
+    this.style.display = "block";
 
     if (this.constructorOptions.iFrame) {
       this.iFrame = this.constructorOptions.iFrame;
@@ -143,8 +140,6 @@ export class StarboardEmbed extends HTMLElement {
       }
     }
 
-    const checkOrigin = [new URL(this.options.src, location.origin).origin];
-
     this.iFrame.sandbox.value = this.options.sandbox;
 
     // Without this check it will reload the page
@@ -153,58 +148,68 @@ export class StarboardEmbed extends HTMLElement {
     }
     this.iFrame.frameBorder = "0";
 
-    const ifr = iFrameResizer(
-      {
-        autoResize: this.options.autoResize,
-        inPageLinks: this.options.inPageLinks,
-        checkOrigin: checkOrigin,
-        log: this.options.debug,
-        onMessage: async (data: { iframe: any; message: OutboundNotebookMessage }) => {
-          const msg = data.message;
-          if (msg.type === "NOTEBOOK_READY_SIGNAL") {
-            if (this.options!.notebookContent) {
-              const content = await this.options!.notebookContent;
-              this.notebookContent = content;
-              this.lastSavedNotebookContent = this.notebookContent;
-              this.sendMessage({
-                type: "NOTEBOOK_SET_INIT_DATA",
-                payload: { content, baseUrl: this.options!.baseUrl },
-              });
-            } else {
-              this.notebookContent = msg.payload.content;
-              this.lastSavedNotebookContent = this.notebookContent;
-            }
-            this.hasReceivedReadyMessage.resolve(msg.payload);
-            this.options!.onNotebookReadySignalMessage(msg.payload);
-          } else if (msg.type === "NOTEBOOK_CONTENT_UPDATE") {
-            this.notebookContent = msg.payload.content;
-            this.updateDirty();
-            this.options!.onContentUpdateMessage(msg.payload);
-          } else if (msg.type === "NOTEBOOK_SAVE_REQUEST") {
-            this.notebookContent = msg.payload.content;
-            this.updateDirty();
-            // Make it a promise regardless of return value of the function.
-            const r = Promise.resolve(this.options!.onSaveMessage(msg.payload));
-            r.then((ret) => {
-              if (ret === true) {
-                this.lastSavedNotebookContent = msg.payload.content;
-                this.updateDirty();
-              }
-            });
-          }
-          this.options!.onMessage(msg);
-        },
-        onReady: () => {},
-      },
-      this.iFrame
-    );
+    this.iFrameMessageHandler = async (ev: MessageEvent<any>) => {
+      if (ev.source === null || ev.source !== this.iFrame?.contentWindow) return;
 
-    this.iFrameResizer = ifr[0].iFrameResizer;
+      const options = this.options;
+      if (!options) return;
+
+      const checkOrigin = [new URL(options.src, location.origin).origin];
+      if (!checkOrigin.includes(ev.origin)) return;
+
+      if (!ev.data) return;
+      const msg = ev.data as OutboundNotebookMessage;
+
+      // @ts-ignore // TODO: Remove this ts-ignore once the typings have been updated
+      if (msg.type === "NOTEBOOK_RESIZE_REQUEST") {
+        const iFrame = this.iFrame;
+        if (options.autoResize && iFrame) {
+          iFrame.setAttribute("scrolling", "no");
+          // Todo: make the width super stable as well
+          // iFrame.style.width = `${ev.data.payload.width}px`;
+          iFrame.style.height = `${ev.data.payload.height + 2}px`; // Not sure why I need + 2
+        }
+      } else if (msg.type === "NOTEBOOK_READY_SIGNAL") {
+        if (options.notebookContent) {
+          const content = await options.notebookContent;
+          this.notebookContent = content;
+          this.lastSavedNotebookContent = this.notebookContent;
+          this.sendMessage({
+            type: "NOTEBOOK_SET_INIT_DATA",
+            payload: { content, baseUrl: options.baseUrl },
+          });
+        } else {
+          this.notebookContent = msg.payload.content;
+          this.lastSavedNotebookContent = this.notebookContent;
+        }
+        this.hasReceivedReadyMessage.resolve(msg.payload);
+        options.onNotebookReadySignalMessage(msg.payload);
+      } else if (msg.type === "NOTEBOOK_CONTENT_UPDATE") {
+        this.notebookContent = msg.payload.content;
+        this.updateDirty();
+        options.onContentUpdateMessage(msg.payload);
+      } else if (msg.type === "NOTEBOOK_SAVE_REQUEST") {
+        this.notebookContent = msg.payload.content;
+        this.updateDirty();
+        // Make it a promise regardless of return value of the function.
+        const r = Promise.resolve(options.onSaveMessage(msg.payload));
+        r.then((ret) => {
+          if (ret === true) {
+            this.lastSavedNotebookContent = msg.payload.content;
+            this.updateDirty();
+          }
+        });
+      }
+
+      options.onMessage(msg);
+    };
+
+    window.addEventListener("message", this.iFrameMessageHandler);
   }
 
   public sendMessage(message: InboundNotebookMessage) {
     // Sending messages before the iframe leads to messages being lost, which can happen when the iframe loads slowly.
-    this.hasReceivedReadyMessage.promise.then(() => this.iFrameResizer.sendMessage(message));
+    this.hasReceivedReadyMessage.promise.then(() => this.iFrame?.contentWindow?.postMessage(message, "*"));
   }
 
   /**
@@ -233,8 +238,9 @@ export class StarboardEmbed extends HTMLElement {
   }
 
   public dispose() {
-    this.iFrameResizer.close();
-
+    if (this.iFrameMessageHandler) {
+      window.removeEventListener("message", this.iFrameMessageHandler);
+    }
     if (this.unsavedChangesWarningFunction) {
       window.removeEventListener("beforeunload", this.unsavedChangesWarningFunction);
     }
