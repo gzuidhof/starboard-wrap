@@ -13,6 +13,32 @@ import {
 } from "starboard-notebook/dist/src/types/messages";
 import { flatPromise } from "./flatPromise";
 
+function getDefaultAllowAttributeValue() {
+  // Extract Firefox version.. We know for sure in FF 91 and lower the `allow` is more limited than Chrome's
+  // and it spams the console with warnings if we're not careful.. TODO: find a way to disable those warnings?
+  const ffMatch = navigator.userAgent.match(/Firefox\/(\d+)/);
+
+  if (ffMatch !== null) {
+    const ffVersion = parseInt(ffMatch![2] || "0");
+    if (!isNaN(ffVersion) && ffVersion <= 91) {
+      return "camera;fullscreen;gamepad;geolocation;microphone;web-share";
+    }
+  }
+
+  // excluded for all: display-capture, document-domain, encrypted-media
+  const featurePolicyAllowedFeatures =
+    (document as any).featurePolicy?.allowedFeatures && (document as any).featurePolicy.allowedFeatures();
+
+  if (featurePolicyAllowedFeatures) {
+    return (featurePolicyAllowedFeatures as string[])
+      .filter((x) => ["display-capture", "document-domain", "encrypted-media"].indexOf(x) === -1)
+      .join(";");
+  } else {
+    // excluded because latest chrome doesn't know about it: gamepad, ambient-light-sensor, battery, execution-while-not-rendered, execution-while-out-of-viewport, navigation-override
+    return `camera;fullscreen;geolocation;microphone;web-share;cross-origin-isolated;accelerometer;autoplay;gyroscope;magnetometer;midi;payment;picture-in-picture;publickey-credentials-get;sync-xhr;usb;screen-wake-lock;xr-spatial-tracking`;
+  }
+}
+
 export type StarboardNotebookIFrameOptions<ReceivedMessageType = OutboundNotebookMessage> = {
   /**
    * Optionally you can pass the iframe to attach to. If you don't pass one here
@@ -44,6 +70,10 @@ export type StarboardNotebookIFrameOptions<ReceivedMessageType = OutboundNoteboo
    * Custom iframe sandboxing attributes
    */
   sandbox: string;
+  /**
+   * Custom iframe allow attribute value
+   */
+  allow: string;
   preventNavigationWithUnsavedChanges: boolean;
 };
 
@@ -61,13 +91,14 @@ function loadDefaultSettings(
       opts.src ??
       el.getAttribute("src") ??
       (window as any).starboardEmbedIFrameSrc ??
-      "https://unpkg.com/starboard-notebook@0.12.0/dist/index.html",
+      "https://cdn.starboard.gg/npm/starboard-notebook@0.13.2/dist/index.html",
     baseUrl: opts.baseUrl || el.dataset["baseUrl"] || undefined,
     autoResize: opts.autoResize ?? true,
     sandbox:
       opts.sandbox ??
       el.getAttribute("sandbox") ??
       "allow-scripts allow-modals allow-same-origin allow-pointer-lock allow-top-navigation-by-user-activation allow-forms allow-downloads",
+    allow: opts.allow ?? el.getAttribute("allow") ?? getDefaultAllowAttributeValue(),
     onNotebookReadySignalMessage: opts.onNotebookReadySignalMessage ?? function () {},
     onContentUpdateMessage: opts.onContentUpdateMessage ?? function () {},
     onSaveMessage: opts.onSaveMessage ?? function () {},
@@ -141,6 +172,10 @@ export class StarboardEmbed extends HTMLElement {
     }
 
     this.iFrame.sandbox.value = this.options.sandbox;
+
+    if (!this.iFrame.allow) {
+      this.iFrame.allow = this.options.allow;
+    }
 
     // Without this check it will reload the page
     if (this.iFrame.src !== this.options.src) {

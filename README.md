@@ -18,7 +18,7 @@ The webpage talks to the notebook runtime in the iFrame using `postMessage`. Thi
 
     const el = new StarboardEmbed({
         notebookContent: "# %% [javascript]\n3+5\n",
-        src: "https://unpkg.com/starboard-notebook@0.12.0/dist/index.html"
+        src: "https://cdn.starboard.gg/npm/starboard-notebook@0.13.2/dist/index.html"
     });
 
     mount.appendChild(el);
@@ -36,7 +36,7 @@ Or
 # %% [javascript]
 3+5
 </script>
-<iframe src="https://unpkg.com/starboard-notebook@0.12.0/dist/index.html"></iframe>
+<iframe src="https://cdn.starboard.gg/npm/starboard-notebook@0.13.2/dist/index.html"></iframe>
 
 </starboard-embed>
 ```
@@ -44,6 +44,11 @@ Or
 > ⚠️ Never use the second approach (the one with the `<script>` tag inside the `starboard-embed` element) for notebooks you did not author yourself! It makes cross site scripting (XSS) trivial. Its intended use is for embedding small notebooks in a blogpost, not for use in applications with user-generated content.
 
 ## Changelog
+
+### 0.4.1
+* Update to Starboard notebook `0.13.2`, and set `allow="cross-origin-isolated"` on iframes.
+* Switched to `cdn.starboard.gg` CDN by default, as it sets the correct CORP, COEP and COOP headers.
+* The `allow` rules of the iframe now get set (it's an attribute on the `iframe` element), allowing you to do things like requesting fullscreen or access to the microphone from within a notebook. You can set your own `allow` value to change this behavior.
 
 ### 0.4.0
 * Update for compatiblity with Starboard Notebook version `0.12.0`, which gets rid of `iframe-resizer` library for much smaller bundle size.
