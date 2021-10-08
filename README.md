@@ -45,6 +45,9 @@ Or
 
 ## Changelog
 
+### 0.4.2
+* Update to Starboard notebook `0.14.1`. 
+
 ### 0.4.1
 * Update to Starboard notebook `0.13.2`, and set `allow="cross-origin-isolated"` on iframes.
 * Switched to `cdn.starboard.gg` CDN by default, as it sets the correct CORP, COEP and COOP headers.
