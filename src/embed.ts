@@ -91,7 +91,7 @@ function loadDefaultSettings(
       opts.src ??
       el.getAttribute("src") ??
       (window as any).starboardEmbedIFrameSrc ??
-      "https://cdn.starboard.gg/npm/starboard-notebook@0.13.2/dist/index.html",
+      "https://cdn.starboard.gg/npm/starboard-notebook@0.14.1/dist/index.html",
     baseUrl: opts.baseUrl || el.dataset["baseUrl"] || undefined,
     autoResize: opts.autoResize ?? true,
     sandbox:
